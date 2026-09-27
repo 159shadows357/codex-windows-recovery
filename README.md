@@ -4,7 +4,19 @@
 
 ตรวจครั้งล่าสุด: 2026-09-27
 
-## เหตุการณ์ล่าสุด: loading ค้างและ Alt+Alt หาย
+## เหตุการณ์ล่าสุด: loading กลับมาค้างหลังปิดแล้วเปิดใหม่
+
+ผู้ใช้ทดสอบปิดแล้วเปิดใหม่บน `26.924.2738.0` แล้วพบ loading ค้างซ้ำ การเปิดตามปกติอีกครั้งระหว่างตรวจสอบก็เกิดอาการเดิม การขอ initialization snapshot จริงซ้ำทำให้หน้าหลักและ composer กลับมาได้อีกครั้ง จึงยืนยันว่าการกู้คืนรอบแรกยังไม่ใช่การแก้ถาวร
+
+เมื่อตัวเปิดผ่านการทดสอบ cold launch สำหรับหน้าหลักสองรอบแล้ว ผู้ใช้พบว่า Alt+Alt หายอีก การตรวจแยกพบ native Appshot registration timeout และ service จำสถานะล้มเหลวไว้ การเริ่มเฉพาะ Appshot ใหม่ด้วย feature snapshot จริงครบทั้งชุดกู้คืนได้ และผู้ใช้กดปุ่มจริงยืนยันแล้ว ทั้งสองอาการจึงต้องตรวจแยกหลังเปิดใหม่
+
+มีตัวเปิดพร้อมกู้คืน [`Start-Codex-Recovery.cmd`](Start-Codex-Recovery.cmd) สำหรับหน้าหลักและ Appshot ของ build นี้โดยเฉพาะ ต้องมี PowerShell 7 และ Node.js 24 และ Quit แอปเดิมก่อน ตัวเปิดไม่ลบ cache/profile ไม่แก้โปรแกรมที่ลงลายเซ็น และไม่ปิด process ที่กำลังทำงานเอง หาก Appshot retry แรกยังไม่สำเร็จ อาจต้องรอประมาณสองนาทีก่อน fallback อีกหนึ่งครั้ง งบเวลาปริยายรวม 180 วินาที
+
+อ่าน [อาการเกิดซ้ำ วิธีใช้ และข้อจำกัด](docs/incidents/2026-09-27-loading-recurrence.md) ก่อนใช้ ตัวเปิดใช้ diagnostic listener เฉพาะเครื่องซึ่งจะหยุดเมื่อ process แอปปิด เป็น workaround ไม่ใช่ product patch
+
+ผลทดสอบฉบับสุดท้ายเวลา 23:29 ICT: Quit แอปเดิมแล้วเปิดด้วยตัวเปิดนี้ได้ทั้งหน้าหลักและ Appshot, exit code 0, feature settings ไม่เปลี่ยน และไม่มี transaction ค้าง ใช้เวลารวมประมาณ 46 วินาที ผู้ใช้ยืนยันหลังรอบนี้ว่า “หน้าหลักและ Alt+Alt ใช้ได้ทั้งคู่” ผ่าน Node tests 25/25 และ PowerShell assertions 26 ข้อ รอบนี้เป็น cold launch ที่ผ่านทั้งทางเทคนิคและการกดปุ่มจริงหนึ่งรอบ ยังไม่พิสูจน์ว่าการเปิดด้วย shortcut ปกติหายถาวร
+
+## เหตุการณ์ก่อนหน้าในวันเดียวกัน: loading ค้างและ Alt+Alt หาย
 
 บน `OpenAI.Codex 26.924.2738.0` พบปัญหาสองส่วนและกู้คืนได้ใน session ปัจจุบัน:
 
@@ -13,7 +25,7 @@
 | วงกลม loading ค้างทั้งหน้า | renderer ยังไม่มี `appServerVersion` แม้ app-server เริ่มสำเร็จแล้ว ทำให้ gateway readiness ค้าง | ขอ initialization snapshot จริงจาก main process อีกครั้ง |
 | Alt+Alt ไม่เปิดหน้าจอจับภาพ | native Appshot registration หมดเวลา และ service จำสถานะล้มเหลวไว้ | เริ่มส่วน Appshot ใหม่ผ่าน feature snapshot เดิมทั้งชุด แล้วลงทะเบียน `DoubleAlt` อีกครั้ง |
 
-ผู้ใช้ยืนยันว่าเข้าหน้าหลักได้และกด Alt สองครั้งแล้วหน้าจอจับภาพเปิดขึ้นแล้ว การบันทึก/แนบภาพ การส่งข้อความใหม่ และการปิดแล้วเปิดแอปใหม่ยังไม่ได้ทดสอบ จึงยังไม่ถือว่าแก้ถาวร
+ผู้ใช้ยืนยันว่าเข้าหน้าหลักได้และกด Alt สองครั้งแล้วหน้าจอจับภาพเปิดขึ้นแล้ว การบันทึก/แนบภาพและการส่งข้อความใหม่ยังไม่ได้ทดสอบ ส่วนการปิดแล้วเปิดใหม่ที่ทดสอบภายหลังกลับ loading ค้างตามเหตุการณ์ล่าสุดด้านบน
 
 อ่าน [บันทึกปัญหาและขั้นตอนกู้คืนวันที่ 27 ก.ย. 2026](docs/incidents/2026-09-27-loading-and-appshot.md) ก่อนใช้วิธี diagnostic ซึ่งอ้างอิง source ของ build นี้โดยเฉพาะ
 
@@ -267,7 +279,7 @@ rg -n -i `
 | loading ค้างวันที่ 2026-09-27 | renderer local `appServerVersion` ยังไม่มีค่า ทำให้ gateway readiness ค้าง; ขอ initialization snapshot ซ้ำแล้วกู้คืนได้ | เหตุที่ข้อมูลเริ่มระบบไม่มาถึงหรือไม่คงอยู่ใน renderer ตั้งแต่แรก |
 | Integrations หายหลัง update | desktop bundle, plugin cache และ copied runtime reconcile ไม่พร้อมกัน | เงื่อนไข timing ที่ทำให้เกิดทุกครั้ง |
 | Plugins หายชั่วคราวใน startup | marketplace ถูกลดจาก 7 เหลือ 3 ระหว่าง feature state/remote catalog ยังไม่พร้อม แล้วติดตั้งกลับ | เหตุใดระบบจึงถอน plugin แทนที่จะรักษา last-known-good state |
-| Appshots / Alt+Alt หาย | native Windows capture bridge registration ล้มเหลวและ service จำสถานะล้มเหลวไว้; เริ่มเฉพาะส่วนใหม่แล้วกู้คืนได้ | สาเหตุภายใน native helper ที่ทำให้ deadline หมดเวลา และโอกาสเกิดซ้ำหลังเปิดแอปใหม่ |
+| Appshots / Alt+Alt หาย | native Windows capture bridge registration ล้มเหลวและ service จำสถานะล้มเหลวไว้; เริ่มเฉพาะส่วนใหม่แล้วกู้คืนได้; ทดสอบแล้วเกิดซ้ำหลังเปิดใหม่ | สาเหตุภายใน native helper ที่ทำให้ deadline หมดเวลา |
 | package identity error ระหว่าง diagnostic | เปิด executable โดยไม่ผ่าน Windows packaged activation | ไม่ใช่หลักฐานว่า package หรือบัญชีเสีย |
 | Update staged แต่ไม่ติดตั้ง | Store queue รอ user action (`BlockedOnUser`) | ไม่เกี่ยวกับ renderer ที่ว่างใน build เดิม |
 
