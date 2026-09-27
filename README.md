@@ -2,7 +2,20 @@
 
 คู่มือนี้ใช้ตรวจและกู้คืน Codex/ChatGPT desktop บน Windows เมื่อเกิดอาการจอว่างหรือ Integrations หายหลังอัปเดต โดยเก็บหลักฐานก่อนเปลี่ยนแปลงข้อมูลผู้ใช้
 
-ตรวจครั้งล่าสุด: 2026-09-19
+ตรวจครั้งล่าสุด: 2026-09-27
+
+## เหตุการณ์ล่าสุด: loading ค้างและ Alt+Alt หาย
+
+บน `OpenAI.Codex 26.924.2738.0` พบปัญหาสองส่วนและกู้คืนได้ใน session ปัจจุบัน:
+
+| อาการ | สิ่งที่ตรวจพบ | วิธีที่กู้คืนได้ |
+| --- | --- | --- |
+| วงกลม loading ค้างทั้งหน้า | renderer ยังไม่มี `appServerVersion` แม้ app-server เริ่มสำเร็จแล้ว ทำให้ gateway readiness ค้าง | ขอ initialization snapshot จริงจาก main process อีกครั้ง |
+| Alt+Alt ไม่เปิดหน้าจอจับภาพ | native Appshot registration หมดเวลา และ service จำสถานะล้มเหลวไว้ | เริ่มส่วน Appshot ใหม่ผ่าน feature snapshot เดิมทั้งชุด แล้วลงทะเบียน `DoubleAlt` อีกครั้ง |
+
+ผู้ใช้ยืนยันว่าเข้าหน้าหลักได้และกด Alt สองครั้งแล้วหน้าจอจับภาพเปิดขึ้นแล้ว การบันทึก/แนบภาพ การส่งข้อความใหม่ และการปิดแล้วเปิดแอปใหม่ยังไม่ได้ทดสอบ จึงยังไม่ถือว่าแก้ถาวร
+
+อ่าน [บันทึกปัญหาและขั้นตอนกู้คืนวันที่ 27 ก.ย. 2026](docs/incidents/2026-09-27-loading-and-appshot.md) ก่อนใช้วิธี diagnostic ซึ่งอ้างอิง source ของ build นี้โดยเฉพาะ
 
 ## ขอบเขตปัญหาที่พบ
 
@@ -73,6 +86,23 @@ Appshots ไม่ปรากฏใน `codex plugin list` แบบเดี�
 
 ข้อสรุปที่รองรับได้คือ native capture bridge ไม่ตอบทัน deadline ระหว่างลงทะเบียน hotkey ส่วนสาเหตุที่ทำให้ bridge timeout ยังไม่ปรากฏใน log
 
+การตรวจเพิ่มเติมวันที่ 2026-09-27 พบว่า service จำความล้มเหลวนี้ไว้ ทำให้สถานะเป็น `supported=false`, `configuredHotkey="DoubleAlt"`, `isActive=false` แม้ค่าปุ่มลัดยังอยู่ การตั้ง hotkey เดิมซ้ำหรือเปิด helper เพียงอย่างเดียวจึงไม่ล้างสถานะล้มเหลว การเริ่มส่วน Appshot ใหม่แบบเจาะจงกู้คืนได้ตามบันทึกเหตุการณ์ล่าสุด
+
+### 5. วงกลม loading ค้างทั้งหน้า แม้ backend เริ่มสำเร็จแล้ว
+
+หลักฐานวันที่ 2026-09-27 หลังอัปเดต `26.917.6896.0` เป็น `26.924.2738.0`:
+
+- Windows รายงาน package `Status=Ok`; backend initialization และ account lookup สำเร็จ
+- renderer ค้างที่ onboarding/readiness gate เพราะ `appServerVersion` ของ local backend ยังไม่มีค่า
+- restart และการแยก cache ไม่ช่วยในเหตุการณ์นี้
+- การส่ง `{type: "ready", initializationOnly: true}` ผ่าน bridge ปกติของแอปทำให้ main ส่ง initialization snapshot จริงกลับมา และหน้าหลักแสดงได้
+
+นี่ระบุ dependency ที่ค้างและวิธีกู้คืนที่ทดสอบแล้ว แต่ยังไม่ทราบเหตุที่ข้อมูลเริ่มระบบไม่มาถึงหรือไม่คงอยู่ใน renderer ตั้งแต่แรก อย่าเหมารวมว่า spinner ทุกกรณีเกิดจากสาเหตุเดียวกัน
+
+### 6. `The process has no package identity` ระหว่างทดสอบเปิดแอป
+
+ในเหตุการณ์ล่าสุด error นี้เกิดจากการเรียก `ChatGPT.exe` ตรง ๆ ระหว่าง diagnostic launch ไม่ใช่ error ต้นทางของ loading ค้าง ให้เปิดผ่าน Start menu หรือ Windows packaged activation เพื่อรักษา package identity ไม่ต้อง reset บัญชีหรือ profile เพื่อแก้ error ที่เกิดจากวิธีเปิดแอป
+
 ## ขั้นตอนตรวจแบบไม่ทำลายข้อมูล
 
 เปิด PowerShell 7 แล้วรันจากบัญชี Windows ของผู้ใช้คนนั้น
@@ -89,6 +119,7 @@ codex doctor --summary --no-color --ascii
 จดเวลาที่เกิดอาการและสถานะที่มองเห็นจริง แยกเป็น:
 
 - UI ว่างทั้งหน้า
+- วงกลม loading ค้างทั้งหน้า แม้ log บอก backend พร้อม
 - UI ปกติ แต่ Integrations บางรายการหาย
 - รายการอยู่ แต่เรียกใช้แล้ว error
 
@@ -154,6 +185,15 @@ rg -n -i `
 
 อย่าลบ cache หรือ profile เพียงเพราะ process ยังตอบสนอง และอย่าสรุปว่า GPU เป็นสาเหตุหากยังไม่มีหลักฐานตรง
 
+### กรณี loading ค้างหลังอัปเดต 26.924.2738.0
+
+1. แยกสถานะ backend ออกจากสถานะ renderer อย่าใช้ startup log เพียงอย่างเดียวยืนยันว่าหน้าหลักเปิดได้
+2. ถ้า restart ไม่ช่วย ให้ตรวจ gateway readiness และ local `appServerVersion` ตาม [บันทึกเหตุการณ์](docs/incidents/2026-09-27-loading-and-appshot.md)
+3. เมื่อยืนยันว่า main มี initialization snapshot จริง แต่ renderer ยังขาดข้อมูล จึงขอ snapshot ซ้ำผ่าน message เดิมของแอป
+4. ตรวจหน้าหลักและ composer จาก UI แล้วให้ผู้ใช้ยืนยันผล แยกการส่งข้อความและการเปิดแอปรอบใหม่เป็นคนละการทดสอบ
+
+วิธีนี้เป็นการกู้คืนผ่าน diagnostic session ที่ทดสอบกับ build ที่ระบุ ไม่ใช่คำสั่ง repair สาธารณะที่รับรองว่าใช้ได้ทุกเวอร์ชัน
+
 ### กรณี Computer Use หรือ Browser หาย
 
 1. ตรวจ plugin versions และ `node_repl.exe`
@@ -164,13 +204,15 @@ rg -n -i `
 
 อย่าลบ `.codex\.tmp\bundled-marketplaces` ขณะแอปทำงาน เพราะอาจทำให้ cache และ installed state ไม่ตรงกันมากขึ้น
 
-### กรณี Appshots หาย
+### กรณี Appshots หรือ Alt+Alt หาย
 
 1. ตรวจ log สำหรับ `Appshot hotkey inactive` และ `Appshot capture deadline expired`
 2. ตรวจว่า Computer Use และ Browser ทำงานแยกกันได้หรือไม่
-3. เปิดแอปใหม่หนึ่งครั้งเพื่อให้ native capture bridge ลงทะเบียนใหม่
-4. ถ้ายังหายและมี signed desktop build ใหม่ ให้ใช้ Update ในแอป
-5. หลัง update ต้องทดสอบจับ Appshot จริงหนึ่งครั้ง การเห็นเมนูอย่างเดียวไม่เพียงพอ
+3. ถ้าไม่มีงานค้าง ลองเปิดแอปใหม่หนึ่งครั้งเพื่อให้ native capture bridge ลงทะเบียนใหม่ แต่ไม่ถือว่า restart จะแก้ได้ทุกครั้ง
+4. ถ้าหน้าหลักเพิ่งกู้คืนได้และยังเป็น `DoubleAlt` แต่ `supported=false` / `isActive=false` ให้ตรวจการล้างสถานะล้มเหลวเฉพาะ Appshot ตาม [ขั้นตอนที่ทดสอบแล้ว](docs/incidents/2026-09-27-loading-and-appshot.md) ก่อนรีสตาร์ตทั้งแอปซ้ำ
+5. การ retry ผ่าน internal feature message ต้องใช้ snapshot จริงครบทุก field เปลี่ยนเฉพาะ `appshotsEnabled` ที่เดิมเป็น `true` ให้เป็น `false` รอ helper เดิมปิด แล้วคืน snapshot เดิม ห้ามส่งเฉพาะ field เดียวหรือสร้างค่า feature อื่นจากการเดา
+6. ถ้ายังหายและมี signed desktop build ใหม่ ให้ใช้ Update ในแอป
+7. ทดสอบ Alt สองครั้งให้หน้าจอจับภาพเปิด จากนั้นแยกทดสอบบันทึก/แนบภาพจริง การเห็น `isActive=true` หรือเมนูอย่างเดียวไม่เพียงพอที่จะยืนยันครบทุกขั้น
 
 ถ้า timeout เกิดซ้ำบน build ล่าสุด ให้เก็บ log ที่ผ่านการลบข้อมูลอ่อนไหวแล้วส่ง OpenAI Support ปัญหานี้อยู่ที่ capture bridge/hotkey startup ไม่ใช่หลักฐานว่า plugin cache เสีย
 
@@ -195,6 +237,8 @@ rg -n -i `
 - อย่าลบ `.codex`, Local Storage, IndexedDB, cookies หรือ package profile ก่อนมี verified backup และอนุมัติชัดเจน
 - อย่า reinstall build เดิมเมื่อ package integrity ปกติ เพราะ renderer code ไม่เปลี่ยน
 - อย่าใช้ path ของ staged package จากเครื่องอื่นหรือ version เก่า
+- อย่าเรียก `ChatGPT.exe` ตรง ๆ สำหรับ packaged build ที่ต้องใช้ package identity ให้ใช้ Windows packaged activation
+- อย่าส่ง feature message แบบขาด field หรือเปลี่ยน entitlement เพื่อให้ Appshot เปิดได้
 - อย่าใช้ `Add-AppxPackage -Register` เป็นขั้นตอนมาตรฐาน Build รุ่นใหม่อาจมี packaged service และคืน `0x80073D28` เพราะต้องใช้ administrator privileges
 - อย่ารายงานว่าแก้ถาวรจากการเปิดสำเร็จเพียงครั้งเดียว
 
@@ -208,9 +252,10 @@ rg -n -i `
 - sidebar, conversation และ composer แสดงครบ
 - Computer Use ทำ read-only smoke test ได้
 - Browser เปิด public page ได้
-- Appshots จับภาพจริงได้
+- Alt+Alt เปิดหน้าจอจับภาพได้ และบันทึก/แนบภาพจริงได้ โดยจดผลสองขั้นนี้แยกกัน
 - Plugins ทั้ง 4 รายการเป็น version เดียวกันและ enabled
 - log ไม่มี reconciliation หรือ runtime error ที่ยังเกิดซ้ำหลัง startup เสร็จ
+- ปิดแล้วเปิดใหม่ยังทำงานได้ ถ้ายังไม่ได้ทดสอบ ให้รายงานว่าเป็น current-session recovery
 
 ## สรุป root cause
 
@@ -218,10 +263,12 @@ rg -n -i `
 
 | อาการ | Root-cause class ที่มีหลักฐาน | สิ่งที่ยังไม่ทราบ |
 | --- | --- | --- |
-| UI ว่าง | renderer bootstrap fail-closed ก่อน app shell mount | readiness input ตัวที่ pending |
+| UI ว่างในเหตุการณ์ก่อนหน้า | renderer bootstrap fail-closed ก่อน app shell mount | readiness input ตัวที่ pending ในเหตุการณ์นั้น |
+| loading ค้างวันที่ 2026-09-27 | renderer local `appServerVersion` ยังไม่มีค่า ทำให้ gateway readiness ค้าง; ขอ initialization snapshot ซ้ำแล้วกู้คืนได้ | เหตุที่ข้อมูลเริ่มระบบไม่มาถึงหรือไม่คงอยู่ใน renderer ตั้งแต่แรก |
 | Integrations หายหลัง update | desktop bundle, plugin cache และ copied runtime reconcile ไม่พร้อมกัน | เงื่อนไข timing ที่ทำให้เกิดทุกครั้ง |
 | Plugins หายชั่วคราวใน startup | marketplace ถูกลดจาก 7 เหลือ 3 ระหว่าง feature state/remote catalog ยังไม่พร้อม แล้วติดตั้งกลับ | เหตุใดระบบจึงถอน plugin แทนที่จะรักษา last-known-good state |
-| Appshots หาย | native Windows capture bridge timeout ระหว่างลงทะเบียน hotkey | สาเหตุภายใน bridge ที่ไม่ตอบทัน deadline |
+| Appshots / Alt+Alt หาย | native Windows capture bridge registration ล้มเหลวและ service จำสถานะล้มเหลวไว้; เริ่มเฉพาะส่วนใหม่แล้วกู้คืนได้ | สาเหตุภายใน native helper ที่ทำให้ deadline หมดเวลา และโอกาสเกิดซ้ำหลังเปิดแอปใหม่ |
+| package identity error ระหว่าง diagnostic | เปิด executable โดยไม่ผ่าน Windows packaged activation | ไม่ใช่หลักฐานว่า package หรือบัญชีเสีย |
 | Update staged แต่ไม่ติดตั้ง | Store queue รอ user action (`BlockedOnUser`) | ไม่เกี่ยวกับ renderer ที่ว่างใน build เดิม |
 
 การแก้ถาวรต้องเกิดในผลิตภัณฑ์ ได้แก่ loading timeout ที่มี error/retry UI, readiness telemetry, atomic plugin reconciliation ที่รักษา last-known-good state และ capture bridge startup ที่ retry ได้
@@ -229,5 +276,5 @@ rg -n -i `
 ## Prompt สำหรับ Codex เครื่องอื่น
 
 ```text
-อ่าน README.md นี้ก่อนดำเนินการ เก็บหลักฐาน package, codex doctor, plugin list, runtime path และ desktop log ก่อน restart ห้ามลบหรือ reset .codex, package profile, cache, cookies หรือ auth data ระบุให้ชัดว่าอาการเป็น UI ว่าง, Integrations หาย หรือ Appshots timeout แล้วใช้ขั้นตอนกู้คืนเฉพาะกรณี ตรวจผลทุก integration แยกกัน และบันทึกสิ่งที่ยังพิสูจน์ไม่ได้
+อ่าน README.md และ docs/incidents/2026-09-27-loading-and-appshot.md ก่อนดำเนินการ เก็บหลักฐาน package, codex doctor, plugin list, runtime path และ desktop log ก่อน restart ห้ามลบหรือ reset .codex, package profile, cache, cookies หรือ auth data ระบุให้ชัดว่าอาการเป็น UI ว่าง, loading gate ค้าง, Integrations หาย หรือ Appshots timeout แล้วตรวจเงื่อนไขให้ตรงก่อนใช้วิธีกู้คืนเฉพาะกรณี ห้ามเดา readiness, auth, entitlement หรือส่ง feature snapshot ไม่ครบ ตรวจหน้าหลัก, Alt+Alt, บันทึก/แนบภาพ, ส่งข้อความ และ cold restart แยกกัน บันทึกสิ่งที่ยังพิสูจน์ไม่ได้
 ```
