@@ -1,0 +1,62 @@
+name: Codex Windows incident
+description: Record a reproducible Desktop, sandbox, CLI, or integration failure.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check docs/BOARD.md and docs/TIMELINE.md first. Do not attach raw logs, ETL traces, chat text, tokens, account identifiers, or private host and user paths.
+  - type: input
+    id: observed_at
+    attributes:
+      label: Observed date and time (ICT)
+      description: State when the failure happened, not when the issue was written.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Desktop and CLI versions
+      description: Include installed Desktop version and CLI version when available.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Desktop startup
+        - Windows sandbox setup
+        - CLI daemon
+        - Appshot
+        - Integrations or plugins
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Observed symptom
+      description: Describe what the user saw and the exact error text, with private details removed.
+    validations:
+      required: true
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Timeline and checks
+      description: List actions and observations in time order. Separate normal launch, recovery, and cold launch.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Confirmed evidence and remaining uncertainty
+      description: Name the log or command, summarize the relevant result, and state what is still unproven.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Recovery and verification
+      description: Record actual message send, CLI use, Alt+Alt, or other user-visible checks separately.
+    validations:
+      required: true

@@ -1,1 +1,8 @@
 .local/
+
+# Keep machine-specific diagnostics out of Git.
+*.etl
+*.evtx
+*.log
+*.sqlite*
+auth.json
