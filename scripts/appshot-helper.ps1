@@ -43,6 +43,6 @@ try {
     }
     exit 0
 } catch {
-    Write-Error $_.Exception.Message -ErrorAction Continue
+    [Console]::Error.WriteLine((Get-RecoverySafeErrorMessage $_.Exception.Message))
     exit 1
 }

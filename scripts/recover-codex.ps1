@@ -76,6 +76,6 @@ public static class RecoveryPackagedActivation {
     Write-Host 'Diagnostic client closed. The loopback listener remains until you Quit Codex. This is a build-specific workaround; the normal shortcut remains unchanged.'
     exit $result
 } catch {
-    Write-Error $_.Exception.Message -ErrorAction Continue
+    [Console]::Error.WriteLine((Get-RecoverySafeErrorMessage $_.Exception.Message))
     exit 1
 }

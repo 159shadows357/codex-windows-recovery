@@ -1,5 +1,15 @@
 Set-StrictMode -Version Latest
 
+function Get-RecoverySafeErrorMessage {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Message)
+    $safeMessage = [regex]::Replace($Message, '(?i)\b[A-Z]:[\\/]Users[\\/](?:[^\\/\r\n''"<>]+(?=[\\/''"])|[^\s\\/\r\n''"<>]+)', '%USERPROFILE%')
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $profilePattern = [regex]::Escape($env:USERPROFILE) + '(?=[\\/''"]|$)'
+        $safeMessage = [regex]::Replace($safeMessage, $profilePattern, '%USERPROFILE%', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+    return [regex]::Replace($safeMessage, '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b', '[redacted email]')
+}
+
 function Test-RecoveryPackage {
     param([Parameter(Mandatory)]$Package)
     if ($Package.Name -ne 'OpenAI.Codex' -or [string]$Package.Version -ne '26.924.2738.0' -or [string]$Package.Status -ne 'Ok' -or -not $Package.InstallLocation -or -not $Package.PackageFamilyName) {
@@ -60,4 +70,4 @@ function Test-RecoveryAppshotProcess {
     }
 }
 
-Export-ModuleMember -Function Test-RecoveryPackage, Get-RecoveryMainProcess, Test-RecoveryEndpoint, Test-RecoveryAppshotProcess
+Export-ModuleMember -Function Get-RecoverySafeErrorMessage, Test-RecoveryPackage, Get-RecoveryMainProcess, Test-RecoveryEndpoint, Test-RecoveryAppshotProcess

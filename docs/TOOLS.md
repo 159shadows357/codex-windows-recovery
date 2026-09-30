@@ -12,6 +12,8 @@
 
 ก่อนแชร์ผลคำสั่ง ให้ลบ path ที่ระบุตัวผู้ใช้, account identifier และข้อมูลใน log ที่เกี่ยวข้องกับแชต
 
+PowerShell catch ของตัวเปิดและ Appshot helper แทนที่ user-profile path และอีเมลใน error message ก่อนเขียนลง stderr โดยไม่พิมพ์ source path ของสคริปต์ การปิดข้อมูลนี้ไม่ครอบคลุม raw log หรือข้อมูลทุกชนิด จึงยังต้องตรวจ output ก่อนแชร์
+
 ## Desktop launcher
 
 ไฟล์: [Start-Codex-Recovery.cmd](../Start-Codex-Recovery.cmd), [recover-codex.ps1](../scripts/recover-codex.ps1)
@@ -49,5 +51,7 @@ repo นี้จงใจไม่มีคำสั่ง copy/junction แบ
 `node --test .\tests\recovery.test.mjs .\tests\appshot-recovery.test.mjs`
 
 `pwsh -NoLogo -NoProfile -File .\tests\recovery-safety.tests.ps1`
+
+`pwsh -NoLogo -NoProfile -File .\tests\privacy.tests.ps1` ตรวจข้อความ error และ exit code ใน child process โดยไม่เปิด Codex
 
 ผล test ของสคริปต์ไม่แทนการตรวจ UI จริง: ให้ผู้ใช้ยืนยันหน้าหลัก, การส่งข้อความ, Alt+Alt และ cold launch ตามขอบเขตงาน
